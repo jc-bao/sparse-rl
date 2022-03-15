@@ -157,13 +157,12 @@ class ddpg_agent:
                     self._soft_update_target_network(self.critic_target_network, self.critic_network)
                     wandb.log(metrics, step=self.tot_samples)
             # start to do the evaluation
-            success_rate, total_rew, final_rew = self._eval_agent(render = (self.current_epoch%self.args.render_interval)==0)
+            success_rate, total_rew = self._eval_agent(render = (self.current_epoch%self.args.render_interval)==0)
             print('[{}] epoch is: {}, eval success rate is: {:.3f}'.format(datetime.now(), self.current_epoch, success_rate))
             print(f'Epoch time: {time.time() - start}')
             wandb.log({
                 'success_rate': success_rate,
                 'total_rew': total_rew,
-                'final_rew': final_rew, 
                 'epoch': self.current_epoch,
                 'exploration/random_eps': random_eps,
                 'exploration/noise_eps': noise_eps,
@@ -345,7 +344,7 @@ class ddpg_agent:
                     returns.append(ret[idx])
                     ret[idx] = 0
             observation = observation_new
-            if render:
+            if render and len(results) <= 32: # TODO make it not hard code
                 frame = np.array(self.env.render(mode = 'rgb_array'))
                 frame = np.moveaxis(frame, -1, 0)
                 video.append(frame)
@@ -353,6 +352,7 @@ class ddpg_agent:
             wandb.log({"video": wandb.Video(np.array(video), fps=30, format="mp4")})
             del video
         success_rate = np.mean(results)
+        returns = np.array(returns)
         ret = np.mean(returns)
         self.actor_network.train()
-        return success_rate, ret, returns[..., -1]
+        return success_rate, ret
