@@ -1,0 +1,2 @@
+_target_: sparse_rl.models.actor_deepset
+agg: sum
