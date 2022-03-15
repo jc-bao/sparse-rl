@@ -29,7 +29,7 @@ def launch(cfg = None):
     env_params = get_env_params(cfg.env_name)
     def make_env():
         import panda_gym
-        return gym.make(cfg.env_name)
+        return gym.make(cfg.env_name, render=True)
     env = SubprocVecEnv([make_env for i in range(cfg.num_workers)])
 
     # 2. make agent
@@ -41,10 +41,11 @@ def launch(cfg = None):
             wid = ckpt_data["wandb_run_id"]
     else:
         print('Fail to load')
-    wandb.init(project='debug', id=wid, resume="allow", dir=hydra.utils.get_original_cwd())
-    if wid is None:
-        wandb.config.update(OmegaConf.to_container(cfg, resolve=True))
-    wandb.save(".hydra/*")
+    if cfg.wandb:
+        wandb.init(project='debug', id=wid, resume="allow", dir=hydra.utils.get_original_cwd())
+        if wid is None:
+            wandb.config.update(OmegaConf.to_container(cfg, resolve=True))
+        wandb.save(".hydra/*")
     
     # 3. run
     ddpg_trainer = ddpg_agent(cfg, env, env_params, ckpt_data=ckpt_data)

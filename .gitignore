@@ -108,6 +108,8 @@ venv.bak/
 
 #saved_model
 *.pth
+saved_models/
+*/saved_models/
 
 *.pt
 

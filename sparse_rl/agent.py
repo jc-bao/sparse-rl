@@ -75,10 +75,12 @@ class ddpg_agent:
         else:
             for k, v in ckpt_data.items():
                 setattr(self, k, v)
-
-        self.model_dir = os.path.join(wandb.run.dir, "models")
+        if self.args.wandb:
+            self.model_dir = os.path.join(wandb.run.dir, "models")
+        else:
+            self.model_dir = os.path.join('saved_models/', "models")
         if not os.path.exists(self.model_dir):
-            os.mkdir(self.model_dir)
+            os.makedirs(self.model_dir, exist_ok=True)
 
     def learn(self):
         """
@@ -155,18 +157,20 @@ class ddpg_agent:
                     # soft update
                     self._soft_update_target_network(self.actor_target_network, self.actor_network)
                     self._soft_update_target_network(self.critic_target_network, self.critic_network)
-                    wandb.log(metrics, step=self.tot_samples)
+                    if self.args.wandb:
+                        wandb.log(metrics, step=self.tot_samples)
             # start to do the evaluation
             success_rate, total_rew = self._eval_agent(render = (self.current_epoch%self.args.render_interval)==0)
             print('[{}] epoch is: {}, eval success rate is: {:.3f}'.format(datetime.now(), self.current_epoch, success_rate))
             print(f'Epoch time: {time.time() - start}')
-            wandb.log({
-                'success_rate': success_rate,
-                'total_rew': total_rew,
-                'epoch': self.current_epoch,
-                'exploration/random_eps': random_eps,
-                'exploration/noise_eps': noise_eps,
-            }, step=self.tot_samples)
+            if self.args.wandb:
+                wandb.log({
+                    'success_rate': success_rate,
+                    'total_rew': total_rew,
+                    'epoch': self.current_epoch,
+                    'exploration/random_eps': random_eps,
+                    'exploration/noise_eps': noise_eps,
+                }, step=self.tot_samples)
             save_data = [self.x_norm, self.actor_network, self.critic_network]
             torch.save(save_data, os.path.join(self.model_dir, "latest.pt"))
             if success_rate >= self.best_success_rate or self.current_epoch == 0:
@@ -190,7 +194,7 @@ class ddpg_agent:
             "critic_sched": self.critic_sched,
             "buffer": self.buffer,
             "x_norm": self.x_norm,
-            "wandb_run_id": wandb.run.id,
+            "wandb_run_id": wandb.run.id if self.args.wandb else None, 
         }
         with open(os.path.join(self.model_dir, "checkpoint.pkl"), "wb") as f:
             pickle.dump(data, f)
@@ -348,7 +352,7 @@ class ddpg_agent:
                 frame = np.array(self.env.render(mode = 'rgb_array'))
                 frame = np.moveaxis(frame, -1, 0)
                 video.append(frame)
-        if render:
+        if render and self.args.wandb:
             wandb.log({"video": wandb.Video(np.array(video), fps=30, format="mp4")})
             del video
         success_rate = np.mean(results)
