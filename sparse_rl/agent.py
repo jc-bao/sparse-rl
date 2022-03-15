@@ -6,6 +6,7 @@ from datetime import datetime
 import numpy as np
 import hydra
 import wandb
+from tqdm import tqdm
 
 import sparse_rl
 from sparse_rl.replay_buffer import replay_buffer
@@ -93,7 +94,7 @@ class ddpg_agent:
                 # soft update
                 self._soft_update_target_network(self.actor_target_network, self.actor_network)
                 self._soft_update_target_network(self.critic_target_network, self.critic_network)
-        while self.current_epoch < self.args.n_epochs:
+        for epoch in tqdm(range(self.current_epoch, self.args.n_epochs)):
             if self.args.exp_schedule:
                 start_slope, end_slope, final_ratio = self.args.exp_schedule
                 assert final_ratio < 1 and start_slope < end_slope
@@ -172,7 +173,7 @@ class ddpg_agent:
             if success_rate >= self.best_success_rate or self.current_epoch == 0:
                 self.best_success_rate = success_rate
                 torch.save(save_data, os.path.join(self.model_dir, "best.pt"))
-            self.current_epoch += 1
+            self.current_epoch = epoch
             self.save_checkpoint()
     
     def save_checkpoint(self):
@@ -350,6 +351,7 @@ class ddpg_agent:
                 video.append(frame)
         if render:
             wandb.log({"video": wandb.Video(np.array(video), fps=30, format="mp4")})
+            del video
         success_rate = np.mean(results)
         ret = np.mean(returns)
         self.actor_network.train()

@@ -19,9 +19,9 @@ gamma: 0.98
 action_l2: 1
 
 # network
-defaults:
-  - actor: mlp
-  - critic: mlp
+# defaults:
+actor: mlp
+critic: mlp
 optim_actor:
   _target_: torch.optim.Adam
   lr: 0.001

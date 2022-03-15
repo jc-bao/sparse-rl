@@ -117,6 +117,7 @@ venv.bak/
 
 outputs/
 multirun/
+*/multirun/
 notebooks/**/*.png
 notebooks/**/*.svg
 output_videos/
@@ -125,5 +126,5 @@ weights
 wandb
 */wandb
 debug
-outputs
-*/outputs
+outputs/
+*/outputs/
