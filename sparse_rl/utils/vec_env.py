@@ -204,13 +204,14 @@ class SubprocVecEnv(VecEnv):
             pipe.send(('render', (args, {'mode': 'rgb_array', **kwargs})))
         imgs = [pipe.recv() for pipe in self.remotes]
         # Create a big image by tiling images from subprocesses
-        bigimg = tile_images(imgs)
+        # bigimg = tile_images(imgs)
         if mode == 'human':
             import cv2
-            cv2.imshow('vecenv', bigimg[:, :, ::-1])
+            # cv2.imshow('vecenv', bigimg[:, :, ::-1])
+            cv2.imshow('vecenv', imgs)
             cv2.waitKey(1)
         elif mode == 'rgb_array':
-            return bigimg
+            return imgs
         else:
             raise NotImplementedError
 

@@ -21,7 +21,7 @@ def sampler(trial: optuna.Trial):
 
 study = optuna.create_study(
     sampler=sampler,
-    pruner=pruner,
+    pruner=optuna.pruners.SuccessiveHalvingPruner(reduction_factor=4, min_early_stopping_rate=0),
     storage=self.storage,
     study_name=self.study_name,
     load_if_exists=True,

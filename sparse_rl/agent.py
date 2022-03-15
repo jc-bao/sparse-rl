@@ -331,7 +331,7 @@ class ddpg_agent:
         results, returns = [], []
         observation = self.env.reset()
         ret = np.zeros(self.args.num_workers)
-        video = []
+        video = np.array([])
         while len(results) < self.args.n_test_eps:
             grip, obj = observation['gripper_arr'], observation['object_arr']
             g = observation['desired_goal_arr']
@@ -347,12 +347,18 @@ class ddpg_agent:
                     results.append(info[idx]['is_success'])
                     returns.append(ret[idx])
                     ret[idx] = 0
-            observation = observation_new
             if render and len(results) <= 32: # TODO make it not hard code
                 frame = np.array(self.env.render(mode = 'rgb_array'))
-                frame = np.moveaxis(frame, -1, 0)
-                video.append(frame)
+                frame = np.moveaxis(frame, -1, 1)
+                if video.shape[0] == 0:
+                    video = np.array([frame]) # (time, num_env, 4, r, g, b)
+                else:
+                    video = np.concatenate((video, [frame]), axis=0)
+
+            observation = observation_new
         if render and self.args.wandb:
+            video = np.moveaxis(video, 0, 1) # (num_env, time, 4, r, g, b)
+            video = np.concatenate(video, axis = 0) # (num_env*time, 4, r, g, b)
             wandb.log({"video": wandb.Video(np.array(video), fps=30, format="mp4")})
             del video
         success_rate = np.mean(results)
