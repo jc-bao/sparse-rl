@@ -1,6 +1,5 @@
 import os
 import pickle
-from tkinter import N
 import hydra
 import wandb
 from omegaconf import OmegaConf
@@ -34,6 +33,7 @@ def launch(cfg = None):
     env = SubprocVecEnv([make_env for i in range(cfg.num_workers)])
 
     # 2. make agent
+    ckpt_data = None
     if cfg.wandb:
         # mode1: init 
         if cfg.wid is None:
