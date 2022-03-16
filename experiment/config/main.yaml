@@ -57,4 +57,9 @@ min_samples: 0
 r_scale: 1
 ckpt_path: ./checkpoint.pkl
 render_interval: 10
-wandb: true
+
+# wandb
+wandb: True
+project: debug
+name: foo
+wid: null

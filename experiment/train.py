@@ -1,5 +1,6 @@
 import os
 import pickle
+from tkinter import N
 import hydra
 import wandb
 from omegaconf import OmegaConf
@@ -33,19 +34,28 @@ def launch(cfg = None):
     env = SubprocVecEnv([make_env for i in range(cfg.num_workers)])
 
     # 2. make agent
-    ckpt_data, wid = None, None
-    if os.path.exists(cfg.ckpt_path):
-        with open(cfg.ckpt_path, "rb") as f:
-            print(f"Loading data from {cfg.ckpt_path}.")
-            ckpt_data = pickle.load(f)
-            wid = ckpt_data["wandb_run_id"]
-    else:
-        print('Fail to load')
     if cfg.wandb:
-        wandb.init(project='debug', id=wid, resume="allow", dir=hydra.utils.get_original_cwd())
-        if wid is None:
-            wandb.config.update(OmegaConf.to_container(cfg, resolve=True))
+        # mode1: init 
+        if cfg.wid is None:
+            wandb.init()
+        else:
+            print('[DEBUG] load data from remote')
+            file = wandb.restore('models/checkpoint.pkl', f'jc-bao/{cfg.project}/{cfg.wid}')
+            with open(file.name, "rb") as f:
+                ckpt_data = pickle.load(f)
+                print('[DEBUG] load done')
+            if cfg.name == ckpt_data['wandb_run_name']:
+                # mode2: resume and continue
+                print('[DEBUG] resume old run')
+                wandb.init(project=cfg.project, id=cfg.wid, resume="allow", dir=hydra.utils.get_original_cwd())
+            else:
+                # mode3: resume and new
+                print('[DEBUG] start new run')
+                wandb.init(project=cfg.project, name=cfg.name, resume="allow", dir=hydra.utils.get_original_cwd())
+        wandb.config.update(OmegaConf.to_container(cfg, resolve=True))
         wandb.save(".hydra/*")
+    elif not cfg.wid is None:
+        print('[WARN] wid was set but wandb is not enabled')
     
     # 3. run
     ddpg_trainer = ddpg_agent(cfg, env, env_params, ckpt_data=ckpt_data)

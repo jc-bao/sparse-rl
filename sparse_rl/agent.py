@@ -26,9 +26,9 @@ ddpg with HER
 class ddpg_agent:
     def __init__(self, args, env, env_params, ckpt_data=None):
         self.args = args
+        self.args.cuda = self.args.cuda and torch.cuda.is_available()
         self.env = env
         self.env_params = env_params
-
         # her sampler
         self.her_module = her_sampler(self.args.replay_strategy, self.args.replay_k, env_params['compute_reward'])
         if ckpt_data is None:
@@ -46,14 +46,11 @@ class ddpg_agent:
             self.actor_target_network.load_state_dict(self.actor_network.state_dict())
             self.critic_target_network.load_state_dict(self.critic_network.state_dict())
             # if use gpu
-            if self.args.cuda and torch.cuda.is_available():
+            if self.args.cuda:
                 self.actor_network.cuda()
                 self.critic_network.cuda()
                 self.actor_target_network.cuda().eval()
                 self.critic_target_network.cuda().eval()
-            else:
-                self.args.cuda = False
-                print('[DEBUG] Not using cuda')
             # create the optimizer
             self.actor_optim = hydra.utils.instantiate(args.optim_actor, self.actor_network.parameters())
             self.critic_optim = hydra.utils.instantiate(args.optim_critic, self.critic_network.parameters())
@@ -67,14 +64,15 @@ class ddpg_agent:
             # create the normalizer
             self.x_norm = ArrayNormalizer(self.env_params, default_clip_range=self.args.clip_range)
             # create the dict for store the model
-            self.init_data = None
-            if args.init_trajs:
-                print(f"loading initial trajectories from {args.init_trajs}.")
-                data = np.load(args.init_trajs)
-                self.init_data = [data["grip"], data["obj"], data["ag"], data["g"], data["action"]]
         else:
             for k, v in ckpt_data.items():
                 setattr(self, k, v)
+            self.buffer = replay_buffer(self.env_params, self.args.buffer_size, self.her_module.sample_her_transitions)
+        self.init_data = None
+        if args.init_trajs:
+            print(f"loading initial trajectories from {args.init_trajs}.")
+            data = np.load(args.init_trajs)
+            self.init_data = [data["grip"], data["obj"], data["ag"], data["g"], data["action"]]
         if self.args.wandb:
             self.model_dir = os.path.join(wandb.run.dir, "models")
         else:
@@ -191,9 +189,10 @@ class ddpg_agent:
             "critic_optim": self.critic_optim,
             "actor_sched": self.actor_sched,
             "critic_sched": self.critic_sched,
-            "buffer": self.buffer,
             "x_norm": self.x_norm,
             "wandb_run_id": wandb.run.id if self.args.wandb else None, 
+            "wandb_run_name": wandb.run.name if self.args.wandb else None, 
+            # "buffer": self.buffer,
         }
         with open(os.path.join(self.model_dir, "checkpoint.pkl"), "wb") as f:
             pickle.dump(data, f)

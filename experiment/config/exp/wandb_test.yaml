@@ -1,0 +1,11 @@
+# @package _global_
+
+n_epochs: 1
+n_cycles: 1
+n_batches: 1
+n_test_eps: 1
+num_workers: 2
+
+project: debug
+name: drawn-armadillo-86
+wid: 3a51fpjf

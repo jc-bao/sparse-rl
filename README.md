@@ -10,17 +10,18 @@
 
 ### Train
 
-- [ ] Curriculum
-- [ ] Optuna
-- [ ] Useless Dropout
-- [ ] Partial Relabel
+- [ ] **Curriculum
+- [ ] ***Optuna
+- [ ] **Useless Dropout
+- [ ] **Partial Relabel
 
 ### explore
 
-- [ ] MEGA (change os rate automatically)
-- [ ] HGG
-- [ ] Energy based replay
+- [ ] *MEGA (change os rate automatically)
+- [ ] *HGG
+- [ ] *Energy based replay
 
 ### Others
 
-- [ ] Env Kwargs control
+- [x] Env Kwargs control
+- [x] **fast resume function
