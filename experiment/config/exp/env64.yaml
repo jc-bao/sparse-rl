@@ -1,0 +1,3 @@
+# @package _global_
+
+num_workers: 64

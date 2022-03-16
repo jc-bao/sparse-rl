@@ -2,7 +2,7 @@ import argparse
 import pickle
 import torch
 import gym
-import panda_gym #, gym_fetch_stack
+import panda_gym
 import numpy as np
 import wandb
 

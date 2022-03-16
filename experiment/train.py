@@ -29,7 +29,7 @@ def launch(cfg = None):
     env_params = get_env_params(cfg.env_name)
     def make_env():
         import panda_gym
-        return gym.make(cfg.env_name, render=True)
+        return gym.make(cfg.env_name)
     env = SubprocVecEnv([make_env for i in range(cfg.num_workers)])
 
     # 2. make agent

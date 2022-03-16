@@ -1,8 +1,11 @@
 import optuna
+from optuna.integration.wandb import WeightsAndBiasesCallback
 import numpy as np
+from .train import launch
 
 
-def objective(triail):
+def objective(trial):
+    launch()
     evaluation_score = 1
     return evaluation_score
 
@@ -19,13 +22,14 @@ def sampler(trial: optuna.Trial):
 
     return hyperparams
 
-study = optuna.create_study(
-    sampler=sampler,
-    pruner=optuna.pruners.SuccessiveHalvingPruner(reduction_factor=4, min_early_stopping_rate=0),
-    storage=self.storage,
-    study_name=self.study_name,
-    load_if_exists=True,
-    direction="maximize",
-)
+if __name__=='__main__':
+    wandbc = WeightsAndBiasesCallback(wandb_kwargs={'project': 'debug'})
+    study = optuna.create_study(
+        sampler=sampler,
+        pruner=optuna.pruners.SuccessiveHalvingPruner(reduction_factor=4, min_early_stopping_rate=0),
+        study_name='handover',
+        load_if_exists=True,
+        direction="maximize",
+    )
 
-study.optimize(self.objective, n_trials=self.n_trials, n_jobs=self.n_jobs)
+    study.optimize(objective, n_trials=16, n_jobs=4, callbacks=[wandbc])

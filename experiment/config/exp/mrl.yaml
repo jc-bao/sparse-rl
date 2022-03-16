@@ -1,0 +1,4 @@
+# @package _global_
+
+batch_size: 1024
+random_eps: 0.2
