@@ -134,7 +134,6 @@ class ddpg_agent:
                     ep_grip.append(observation['gripper_arr'].copy())
                     ep_obj.append(observation['object_arr'].copy())
                     ep_ag.append(observation['achieved_goal_arr'].copy())
-
                     mb_grip.append(np.stack(ep_grip, 1))
                     mb_obj.append(np.stack(ep_obj, 1))
                     mb_ag.append(np.stack(ep_ag, 1))

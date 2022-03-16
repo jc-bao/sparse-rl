@@ -7,8 +7,8 @@ import gym, panda_gym
 from sparse_rl.agent import ddpg_agent
 from sparse_rl.utils import SubprocVecEnv
 
-def get_env_params(env_name):
-    env = gym.make(env_name)
+def get_env_params(env_name, env_kwargs):
+    env = gym.make(env_name, **env_kwargs)
     obs = env.reset()
     params = {
         'gripper': obs['gripper_arr'].shape[-1],
@@ -26,10 +26,10 @@ def get_env_params(env_name):
 @hydra.main(config_name='main', config_path='config')
 def launch(cfg = None):
     # 1. make env
-    env_params = get_env_params(cfg.env_name)
+    env_params = get_env_params(cfg.env_name, cfg.env_kwargs)
     def make_env():
         import panda_gym
-        return gym.make(cfg.env_name)
+        return gym.make(cfg.env_name, **cfg.env_kwargs)
     env = SubprocVecEnv([make_env for i in range(cfg.num_workers)])
 
     # 2. make agent
