@@ -12,7 +12,7 @@ class her_sampler:
 
     def sample_her_transitions(self, episode_batch, batch_size_in_transitions):
         rollout_batch_size = episode_batch['actions'].shape[0]
-        batch_size = batch_size_in_transitions
+        batch_size = int(batch_size_in_transitions)
         # select which rollouts and which timesteps to be used
         episode_idxs = np.random.randint(0, rollout_batch_size, batch_size)
         # t_samples = np.random.randint(T, size=batch_size)
