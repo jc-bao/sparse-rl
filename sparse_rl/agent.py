@@ -51,9 +51,8 @@ class ddpg_agent:
                 self.critic_network.cuda()
                 self.actor_target_network.cuda().eval()
                 self.critic_target_network.cuda().eval()
-            # create the optimizer
-            self.actor_optim = hydra.utils.instantiate(args.optim_actor, self.actor_network.parameters())
-            self.critic_optim = hydra.utils.instantiate(args.optim_critic, self.critic_network.parameters())
+            self.actor_optim = torch.optim.Adam(self.actor_network.parameters(), lr = args.lr, weight_decay = args.weight_decay)
+            self.critic_optim = torch.optim.Adam(self.critic_network.parameters(), lr = args.lr, weight_decay = args.weight_decay)
             self.actor_sched, self.critic_sched = None, None
             if args.warmup_actor > 0:
                 self.actor_sched = torch.optim.lr_scheduler.LambdaLR(self.actor_optim, lambda t: min((t+1) / args.warmup_actor, 1))

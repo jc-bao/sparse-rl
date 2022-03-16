@@ -8,7 +8,7 @@ class replay_buffer:
     def __init__(self, env_params, buffer_size, sample_func):
         self.env_params = env_params
         self.T = env_params['max_timesteps']
-        self.size = buffer_size // self.T
+        self.size = int(buffer_size) // self.T
         # memory management
         self.current_size = 0
         self.n_transitions_stored = 0

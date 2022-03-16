@@ -37,7 +37,7 @@ def launch(cfg = None):
     if cfg.wandb:
         # mode1: init 
         if cfg.wid is None:
-            wandb.init()
+            wandb.init(project=cfg.project, name=cfg.name, dir=hydra.utils.get_original_cwd())
         else:
             print('[DEBUG] load data from remote')
             file = wandb.restore('models/checkpoint.pkl', f'jc-bao/{cfg.project}/{cfg.wid}')
