@@ -31,14 +31,14 @@ action_l2: 1
 
 # network
 defaults:
-  - actor: mlp
-  - critic: mlp
+  - actor: deepset
+  - critic: deepset
 lr: 0.001
 weight_decay: 0
 warmup_actor: 0
 warmup_critic: 0
 
-polyak: 0.99
+polyak: 0.95
 n_test_eps: 100
 clip_range: 5
 demo_length: 20

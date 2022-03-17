@@ -49,6 +49,30 @@ class actor(nn.Module):
         actions = self.max_action * torch.tanh(self.action_out(x))
         return actions
 
+class actor_512(nn.Module):
+    def __init__(self, env_params):
+        super(actor_512, self).__init__()
+        self.max_action = env_params['action_max']
+        n_obj = env_params['n_objects']
+        inp_dim = env_params['gripper'] + n_obj * (env_params['object'] + env_params['goal'])
+        self.fc1 = nn.Linear(inp_dim, 512)
+        self.fc2 = nn.Linear(512, 512)
+        self.fc3 = nn.Linear(512, 512)
+        self.fc4 = nn.Linear(512, 512)
+        self.action_out = nn.Linear(512, env_params['action'])
+
+    def forward(self, grip, obj, g):
+        batch_dims = obj.shape[:-2]
+        obj = obj.reshape(*batch_dims, -1)
+        g = g.reshape(*batch_dims, -1)
+        x = torch.cat((grip, obj, g), -1)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = F.relu(self.fc3(x))
+        x = F.relu(self.fc4(x))
+        actions = self.max_action * torch.tanh(self.action_out(x))
+        return actions
+
 class critic(nn.Module):
     def __init__(self, env_params):
         super(critic, self).__init__()
@@ -68,6 +92,31 @@ class critic(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
+        q_value = self.q_out(x)
+
+        return q_value
+
+class critic_512(nn.Module):
+    def __init__(self, env_params):
+        super(critic_512, self).__init__()
+        self.max_action = env_params['action_max']
+        n_obj = env_params['n_objects']
+        inp_dim = env_params['gripper'] + n_obj * (env_params['object'] + env_params['goal']) + env_params['action']
+        self.fc1 = nn.Linear(inp_dim, 512)
+        self.fc2 = nn.Linear(512, 512)
+        self.fc3 = nn.Linear(512, 512)
+        self.fc4 = nn.Linear(512, 512)
+        self.q_out = nn.Linear(512, 1)
+
+    def forward(self, grip, obj, g, actions):
+        batch_dims = obj.shape[:-2]
+        obj = obj.reshape(*batch_dims, -1)
+        g = g.reshape(*batch_dims, -1)
+        x = torch.cat((grip, obj, g, actions / self.max_action), -1)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = F.relu(self.fc3(x))
+        x = F.relu(self.fc4(x))
         q_value = self.q_out(x)
 
         return q_value
