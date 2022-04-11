@@ -39,11 +39,11 @@ def launch(cfg = None):
                 wandb.init(project=cfg.project, name=cfg.name, resume="allow", dir=hydra.utils.get_original_cwd())
         wandb.config.update(OmegaConf.to_container(cfg, resolve=True))
         wandb.save(".hydra/*")
+        cfg = AttrDict(wandb.config)
     elif not cfg.wid is None:
         print('[WARN] wid was set but wandb is not enabled')
     
     # 3. run
-    cfg = AttrDict(wandb.config)
     ddpg_trainer = ddpg_agent(cfg, env, env_params, ckpt_data=ckpt_data)
     ddpg_trainer.learn()
 

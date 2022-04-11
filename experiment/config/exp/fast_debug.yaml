@@ -5,3 +5,4 @@ n_cycles: 1
 n_batches: 1
 n_test_eps: 1
 num_workers: 2
+wandb: false

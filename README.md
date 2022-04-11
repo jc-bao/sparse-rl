@@ -1,5 +1,9 @@
 # Sparse RL
 
+## Train
+
+
+
 ## TODO
 
 ### Policy
@@ -11,7 +15,9 @@
 ### Train
 
 - [ ] **Curriculum
-- [ ] ***Optuna
+- [ ] MPI
+
+- [x] ***Optuna
 - [ ] **Useless Dropout
 - [ ] **Partial Relabel
 

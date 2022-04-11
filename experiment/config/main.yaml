@@ -11,11 +11,11 @@ env_kwargs:
     gap_distance: null # if None, auto set
     debug_mode: False # if show debug info
     base_ep_len: 50
-n_epochs: 100
-n_cycles: 100
-n_batches: 40
+n_epochs: 250
+n_cycles: 50
+n_batches: 10
 save_interval: 5
-seed: 123
+seed: 0 
 num_workers: 16
 replay_strategy: future
 clip_return: 50
@@ -38,7 +38,7 @@ weight_decay: 0
 warmup_actor: 0
 warmup_critic: 0
 
-polyak: 0.95
+polyak: 0.99
 n_test_eps: 100
 clip_range: 5
 demo_length: 20

@@ -26,7 +26,9 @@ ddpg with HER
 class ddpg_agent:
     def __init__(self, args, env, env_params, ckpt_data=None):
         self.args = args
-        self.args.cuda = self.args.cuda and torch.cuda.is_available()
+        if self.args.cuda and not torch.cuda.is_available():
+            print('[WARN] cuda not available.')
+            self.args.cuda = False
         self.env = env
         self.env_params = env_params
         # her sampler
