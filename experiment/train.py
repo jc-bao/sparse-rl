@@ -37,7 +37,7 @@ def launch(cfg = None):
                 # mode3: resume and new
                 print('[DEBUG] start new run')
                 wandb.init(project=cfg.project, name=cfg.name, resume="allow", dir=hydra.utils.get_original_cwd())
-        wandb.config.update(OmegaConf.to_container(cfg, resolve=True))
+        wandb.config.update(OmegaConf.to_container(cfg, resolve=True), allow_val_change=True)
         wandb.save(".hydra/*")
         cfg = AttrDict(wandb.config)
     elif not cfg.wid is None:
