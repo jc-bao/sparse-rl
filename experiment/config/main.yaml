@@ -56,6 +56,6 @@ curri: {}
 
 # wandb
 wandb: True
-project: Handover
+project: Sparse-rl 
 name: baseline
 wid: null
