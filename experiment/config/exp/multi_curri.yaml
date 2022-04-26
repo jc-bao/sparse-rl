@@ -12,10 +12,10 @@ curri:
     end: 0.8
     step: 0.1
     bar: -0.25
-  # goal_scale:
-  #   start: 0.4
-  #   end: 1.0
-  #   step: 0.1
-  #   bar: -0.3
+  goal_scale:
+    start: 0.4
+    end: 1.0
+    step: 0.1
+    bar: -0.3
 
 name: gap_os_gscale_curri
