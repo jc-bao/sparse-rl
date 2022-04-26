@@ -23,6 +23,7 @@
 
 ### explore
 
+- [ ] useless data dropout
 - [ ] *MEGA (change os rate automatically)
 - [ ] *HGG
 - [ ] *Energy based replay

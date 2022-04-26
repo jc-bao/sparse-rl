@@ -7,7 +7,7 @@ env_kwargs:
     num_blocks: 1 # number of blocks
     os_rate: 0.6 # init goal in different table
     os_num_dist: binominal # other side number distribution 'uniform', 'binominal'
-    obj_in_hand_rate: 1 # init obj in hand
+    obj_in_hand_rate: 0.3 # init obj in hand
     gap_distance: null # if None, auto set
     debug_mode: False # if show debug info
     base_ep_len: 50
@@ -52,8 +52,10 @@ r_scale: 1
 ckpt_path: ./checkpoint.pkl
 render_interval: 10
 
+curri: {}
+
 # wandb
 wandb: True
 project: Handover
-name: 1obj_16env_main
+name: baseline
 wid: null

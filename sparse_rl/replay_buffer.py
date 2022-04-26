@@ -27,6 +27,7 @@ class replay_buffer:
         mb_grip, mb_obj, mb_ag, mb_g, mb_actions = episode_batch
         T = mb_actions.shape[1]
         batch_size = mb_grip.shape[0]
+        if batch_size == 0: return
         idxs = self._get_storage_idx(inc=batch_size)
         # store the informations
         self.buffers['gripper'][idxs, :T+1] = mb_grip

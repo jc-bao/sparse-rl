@@ -42,6 +42,8 @@ def launch(cfg = None):
         cfg = AttrDict(wandb.config)
     elif not cfg.wid is None:
         print('[WARN] wid was set but wandb is not enabled')
+    else:
+        cfg = AttrDict(cfg)
     
     # 3. run
     ddpg_trainer = ddpg_agent(cfg, env, env_params, ckpt_data=ckpt_data)
