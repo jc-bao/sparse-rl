@@ -18,4 +18,4 @@ curri:
   #   step: 0.1
   #   bar: -0.3
 
-name: gap_os_curri
+name: gap_os_curri(roboinit_objinit)
