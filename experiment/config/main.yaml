@@ -2,7 +2,7 @@ env_name: PandaRearrangeBimanual-v0
 env_kwargs: 
   render: False
   task_kwargs:
-    goal_z: 0.2
+    goal_z: 0.15
     obj_xyz_range: [0.3, 0.4, 0]
     num_blocks: 1 # number of blocks
     os_rate: 0.6 # init goal in different table
