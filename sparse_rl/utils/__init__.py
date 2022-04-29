@@ -1,5 +1,6 @@
 from sparse_rl.utils.vec_env import SubprocVecEnv
 from sparse_rl.utils.normalizer import Normalizer, ArrayNormalizer
+from sparse_rl.utils.mpi_utils import sync_networks, sync_grads
 import gym
 
 __all__ = ['SubprocVecEnv', 'Normalizer', 'ArrayNormalizer']

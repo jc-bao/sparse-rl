@@ -8,12 +8,12 @@ import hydra
 import wandb
 from tqdm import tqdm
 from attrdict import AttrDict
+from mpi4py import MPI
 
 import sparse_rl
 from sparse_rl.replay_buffer import replay_buffer
-from sparse_rl.utils import ArrayNormalizer
+from sparse_rl.utils import ArrayNormalizer, sync_networks, sync_grads
 from sparse_rl.relabel import her_sampler
-
 
 def linear_sched(x0, x1, y0, y1, x):
 	m = (y1 - y0) / (x1 - x0)
@@ -25,7 +25,7 @@ ddpg with HER
 """
 
 
-class ddpg_agent:
+class ddpg_agent: 
 	def __init__(self, args, env, env_params, ckpt_data=None):
 		self.args = args
 		if self.args.cuda and not torch.cuda.is_available():
@@ -33,6 +33,8 @@ class ddpg_agent:
 			self.args.cuda = False
 		self.env = env
 		self.env_params = env_params
+		# MPI 
+		self.comm = MPI.COMM_WORLD
 		# her sampler
 		self.her_module = her_sampler(
 			self.args.replay_strategy, self.args.replay_k, env_params['compute_reward'])
@@ -46,6 +48,12 @@ class ddpg_agent:
 				args.actor, env_params)
 			self.critic_network = hydra.utils.instantiate(
 				args.critic, env_params)
+			# sync network
+			print('=============1')
+			sync_networks(self.actor_network)
+			sync_networks(self.critic_network)
+			print('=============2')
+			exit()
 			# build up the target network
 			self.actor_target_network = hydra.utils.instantiate(
 				args.actor, env_params)
@@ -91,12 +99,13 @@ class ddpg_agent:
 			data = np.load(args.init_trajs)
 			self.init_data = [data["grip"], data["obj"],
 												data["ag"], data["g"], data["action"]]
-		if self.args.wandb:
-			self.model_dir = os.path.join(wandb.run.dir, "models")
-		else:
-			self.model_dir = os.path.join('saved_models/', "models")
-		if not os.path.exists(self.model_dir):
-			os.makedirs(self.model_dir, exist_ok=True)
+		if ynPI.COMM_WORLD.Get_rank() == 0:
+			if self.args.wandb:
+				self.model_dir = os.path.join(wandb.run.dir, "models")
+			else:
+				self.model_dir = os.path.join('saved_models/', "models")
+			if not os.path.exists(self.model_dir):
+				os.makedirs(self.model_dir, exist_ok=True)
 		self.curri_params = {}
 		for k, v in self.args.curri.items():
 			self.curri_params[k] = v['start']
@@ -189,7 +198,7 @@ class ddpg_agent:
 						self.actor_target_network, self.actor_network)
 					self._soft_update_target_network(
 						self.critic_target_network, self.critic_network)
-					if self.args.wandb:
+					if self.args.wandb and MPI.COMM_WORLD.Get_rank() == 0:
 						wandb.log(metrics, step=self.tot_samples)
 			# start to do the evaluation
 			eval_return = self._eval_agent(
@@ -202,7 +211,7 @@ class ddpg_agent:
 					self.curri_params[k] += v['step']
 			print('Curri_params:', self.curri_params)
 			print(f'Epoch time: {time.time() - start}')
-			if self.args.wandb:
+			if self.args.wandb and MPI.COMM_WORLD.Get_rank() == 0:
 				wandb.log({
 					**self.curri_params, 
 					'eval/success_rate': eval_return.succ,
@@ -213,13 +222,14 @@ class ddpg_agent:
 					'exploration/noise_eps': noise_eps,
 					'exploration/useless_rate': self.useless_steps/self.tot_samples
 				}, step=self.tot_samples)
-			save_data = [self.x_norm, self.actor_network, self.critic_network]
-			torch.save(save_data, os.path.join(self.model_dir, "latest.pt"))
-			if eval_return.succ >= self.best_success_rate or self.current_epoch == 0:
-				self.best_success_rate = eval_return.succ
-				torch.save(save_data, os.path.join(self.model_dir, "best.pt"))
 			self.current_epoch = epoch
-			self.save_checkpoint()
+			if MPI.COMM_WORLD.Get_rank() == 0:
+				save_data = [self.x_norm, self.actor_network, self.critic_network]
+				torch.save(save_data, os.path.join(self.model_dir, "latest.pt"))
+				if eval_return.succ >= self.best_success_rate or self.current_epoch == 0:
+					self.best_success_rate = eval_return.succ
+					torch.save(save_data, os.path.join(self.model_dir, "best.pt"))
+				self.save_checkpoint()
 
 	def save_checkpoint(self):
 		data = {
@@ -371,10 +381,12 @@ class ddpg_agent:
 		# start to update the network
 		self.actor_optim.zero_grad()
 		actor_loss.backward()
+		sync_grads(self.actor_network)
 		self.actor_optim.step()
 		# update the critic_network
 		self.critic_optim.zero_grad()
 		critic_loss.backward()
+		sync_grads(self.critic_network)
 		self.critic_optim.step()
 		metrics = {
 			'loss/actor': actor_loss.detach().cpu().item(),
@@ -393,7 +405,8 @@ class ddpg_agent:
 		self.actor_network.eval()
 		results, returns, final_rew = [], [], []
 		observation = self.env.reset()
-		video = np.array([])
+		if MPI.COMM_WORLD.Get_rank() == 0:
+			video = np.array([])
 		for _ in range(self.args.n_test_eps):
 			ret = np.zeros(self.args.num_workers)
 			for t in range(self.env_params['max_timesteps']):
@@ -406,7 +419,7 @@ class ddpg_agent:
 				observation_new, rew, done, info = self.env.step(actions)
 				ret += rew
 				observation = observation_new
-				if render and len(results) <= 32:  # TODO make it not hard code
+				if render and len(results) <= 32 and MPI.COMM_WORLD.Get_rank() == 0:  # TODO make it not hard code
 					frame = np.array(self.env.render(mode='rgb_array'))
 					frame = np.moveaxis(frame, -1, 1)
 					if video.shape[0] == 0:
@@ -418,7 +431,7 @@ class ddpg_agent:
 				results.append(info[idx]['is_success'])
 				returns.append(ret[idx])
 				final_rew.append(rew[idx])
-		if render and self.args.wandb:
+		if render and self.args.wandb and MPI.COMM_WORLD.Get_rank() == 0:
 			video = np.moveaxis(video, 0, 1)  # (num_env, time, 4, r, g, b)
 			video = np.concatenate(video, axis=0)  # (num_env*time, 4, r, g, b)
 			wandb.log({"video": wandb.Video(
@@ -426,9 +439,13 @@ class ddpg_agent:
 			del video
 		success_rate = np.mean(results)
 		ret = np.mean(returns)
+		rew_final=np.mean(final_rew)
+		global_success_rate = MPI.COMM_WORLD.allreduce(success_rate, op=MPI.SUM)/MPI.COMM_WORLD.Get_size()
+		global_ret = MPI.COMM_WORLD.allreduce(ret, op=MPI.SUM)/MPI.COMM_WORLD.Get_size()
+		global_rew_final = MPI.COMM_WORLD.allreduce(ret, op=MPI.SUM)/MPI.COMM_WORLD.Get_size()
 		self.actor_network.train()
 		return AttrDict(
-			succ=success_rate,
-			rew_mean=ret,
-			rew_final=np.mean(final_rew)
+			succ=global_success_rate,
+			rew_mean=global_ret,
+			rew_final=global_rew_final
 		)
