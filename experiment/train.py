@@ -4,7 +4,7 @@ import hydra
 import wandb
 from attrdict import AttrDict
 from omegaconf import OmegaConf
-import gym, panda_gym
+import gym 
 from sparse_rl.agent import ddpg_agent
 from sparse_rl.utils import SubprocVecEnv, get_env_params
 
@@ -13,7 +13,8 @@ def launch(cfg = None):
     # 1. make env
     env_params = get_env_params(cfg.env_name, cfg.env_kwargs)
     def make_env():
-        import panda_gym
+        from importlib.machinery import SourceFileLoader
+        modulevar = SourceFileLoader('FrankaCube', '/home/reed/rl/srl/envs/franka_cube.py').load_module()
         return gym.make(cfg.env_name, **cfg.env_kwargs)
     env = SubprocVecEnv([make_env for i in range(cfg.num_workers)])
 

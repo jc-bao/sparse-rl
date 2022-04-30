@@ -8,11 +8,11 @@ import hydra
 import wandb
 from tqdm import tqdm
 from attrdict import AttrDict
-from mpi4py import MPI
+# from mpi4py import MPI
 
 import sparse_rl
 from sparse_rl.replay_buffer import replay_buffer
-from sparse_rl.utils import ArrayNormalizer, sync_networks, sync_grads
+from sparse_rl.utils import ArrayNormalizer #, sync_networks, sync_grads
 from sparse_rl.relabel import her_sampler
 
 def linear_sched(x0, x1, y0, y1, x):
@@ -34,7 +34,7 @@ class ddpg_agent:
 		self.env = env
 		self.env_params = env_params
 		# MPI 
-		self.comm = MPI.COMM_WORLD
+		#self.comm = MPI.COMM_WORLD
 		# her sampler
 		self.her_module = her_sampler(
 			self.args.replay_strategy, self.args.replay_k, env_params['compute_reward'])
@@ -96,13 +96,13 @@ class ddpg_agent:
 			data = np.load(args.init_trajs)
 			self.init_data = [data["grip"], data["obj"],
 												data["ag"], data["g"], data["action"]]
-		if MPI.COMM_WORLD.Get_rank() == 0:
-			if self.args.wandb:
-				self.model_dir = os.path.join(wandb.run.dir, "models")
-			else:
-				self.model_dir = os.path.join('saved_models/', "models")
-			if not os.path.exists(self.model_dir):
-				os.makedirs(self.model_dir, exist_ok=True)
+		#if MPI.COMM_WORLD.Get_rank() == 0:
+		if self.args.wandb:
+			self.model_dir = os.path.join(wandb.run.dir, "models")
+		else:
+			self.model_dir = os.path.join('saved_models/', "models")
+		if not os.path.exists(self.model_dir):
+			os.makedirs(self.model_dir, exist_ok=True)
 		self.curri_params = {}
 		for k, v in self.args.curri.items():
 			self.curri_params[k] = v['start']
@@ -146,6 +146,14 @@ class ddpg_agent:
 					observation = self.env.reset(self.curri_params)
 					# start to collect samples
 					for t in range(self.env_params['max_timesteps']):
+						# for isaac
+						obs_dict = self.env.obs_parser(observation)
+						observation = {
+							'gripper_arr': obs_dict.shared, 
+							'object_arr': obs_dict.seperate, 
+							'desired_goal_arr': obs_dict.g,
+							'achieved_goal_arr': obs_dict.ag,
+						}
 						grip, obj = observation['gripper_arr'], observation['object_arr']
 						g = observation['desired_goal_arr']
 						with torch.no_grad():
@@ -195,8 +203,8 @@ class ddpg_agent:
 						self.actor_target_network, self.actor_network)
 					self._soft_update_target_network(
 						self.critic_target_network, self.critic_network)
-					if self.args.wandb and MPI.COMM_WORLD.Get_rank() == 0:
-						wandb.log(metrics, step=self.tot_samples)
+					#if self.args.wandb and MPI.COMM_WORLD.Get_rank() == 0:
+					wandb.log(metrics, step=self.tot_samples)
 			# start to do the evaluation
 			eval_return = self._eval_agent(
 				render=(self.current_epoch % self.args.render_interval) == 0 and self.current_epoch > 0)
@@ -208,25 +216,25 @@ class ddpg_agent:
 					self.curri_params[k] += v['step']
 			print('Curri_params:', self.curri_params)
 			print(f'Epoch time: {time.time() - start}')
-			if self.args.wandb and MPI.COMM_WORLD.Get_rank() == 0:
-				wandb.log({
-					**self.curri_params, 
-					'eval/success_rate': eval_return.succ,
-					'eval/rew_mean': eval_return.rew_mean,
-					'eval/rew_final': eval_return.rew_final,
-					'epoch': self.current_epoch,
-					'exploration/random_eps': random_eps,
-					'exploration/noise_eps': noise_eps,
-					'exploration/useless_rate': self.useless_steps/self.tot_samples
-				}, step=self.tot_samples)
+			#if self.args.wandb and MPI.COMM_WORLD.Get_rank() == 0:
+			wandb.log({
+				**self.curri_params, 
+				'eval/success_rate': eval_return.succ,
+				'eval/rew_mean': eval_return.rew_mean,
+				'eval/rew_final': eval_return.rew_final,
+				'epoch': self.current_epoch,
+				'exploration/random_eps': random_eps,
+				'exploration/noise_eps': noise_eps,
+				'exploration/useless_rate': self.useless_steps/self.tot_samples
+			}, step=self.tot_samples)
 			self.current_epoch = epoch
-			if MPI.COMM_WORLD.Get_rank() == 0:
-				save_data = [self.x_norm, self.actor_network, self.critic_network]
-				torch.save(save_data, os.path.join(self.model_dir, "latest.pt"))
-				if eval_return.succ >= self.best_success_rate or self.current_epoch == 0:
-					self.best_success_rate = eval_return.succ
-					torch.save(save_data, os.path.join(self.model_dir, "best.pt"))
-				self.save_checkpoint()
+			#if MPI.COMM_WORLD.Get_rank() == 0:
+			save_data = [self.x_norm, self.actor_network, self.critic_network]
+			torch.save(save_data, os.path.join(self.model_dir, "latest.pt"))
+			if eval_return.succ >= self.best_success_rate or self.current_epoch == 0:
+				self.best_success_rate = eval_return.succ
+				torch.save(save_data, os.path.join(self.model_dir, "best.pt"))
+			self.save_checkpoint()
 
 	def save_checkpoint(self):
 		data = {
@@ -402,8 +410,8 @@ class ddpg_agent:
 		self.actor_network.eval()
 		results, returns, final_rew = [], [], []
 		observation = self.env.reset()
-		if MPI.COMM_WORLD.Get_rank() == 0:
-			video = np.array([])
+		#if MPI.COMM_WORLD.Get_rank() == 0:
+		video = np.array([])
 		for _ in range(self.args.n_test_eps):
 			ret = np.zeros(self.args.num_workers)
 			for t in range(self.env_params['max_timesteps']):
@@ -416,7 +424,7 @@ class ddpg_agent:
 				observation_new, rew, done, info = self.env.step(actions)
 				ret += rew
 				observation = observation_new
-				if render and len(results) <= 32 and MPI.COMM_WORLD.Get_rank() == 0:  # TODO make it not hard code
+				if render and len(results) <= 32 :# and MPI.COMM_WORLD.Get_rank() == 0:
 					frame = np.array(self.env.render(mode='rgb_array'))
 					frame = np.moveaxis(frame, -1, 1)
 					if video.shape[0] == 0:
@@ -428,7 +436,7 @@ class ddpg_agent:
 				results.append(info[idx]['is_success'])
 				returns.append(ret[idx])
 				final_rew.append(rew[idx])
-		if render and self.args.wandb and MPI.COMM_WORLD.Get_rank() == 0:
+		if render and self.args.wandb: # and MPI.COMM_WORLD.Get_rank() == 0:
 			video = np.moveaxis(video, 0, 1)  # (num_env, time, 4, r, g, b)
 			video = np.concatenate(video, axis=0)  # (num_env*time, 4, r, g, b)
 			wandb.log({"video": wandb.Video(
@@ -437,12 +445,12 @@ class ddpg_agent:
 		success_rate = np.mean(results)
 		ret = np.mean(returns)
 		rew_final=np.mean(final_rew)
-		global_success_rate = MPI.COMM_WORLD.allreduce(success_rate, op=MPI.SUM)/MPI.COMM_WORLD.Get_size()
-		global_ret = MPI.COMM_WORLD.allreduce(ret, op=MPI.SUM)/MPI.COMM_WORLD.Get_size()
-		global_rew_final = MPI.COMM_WORLD.allreduce(ret, op=MPI.SUM)/MPI.COMM_WORLD.Get_size()
+		#global_success_rate = MPI.COMM_WORLD.allreduce(success_rate, op=MPI.SUM)/MPI.COMM_WORLD.Get_size()
+		#global_ret = MPI.COMM_WORLD.allreduce(ret, op=MPI.SUM)/MPI.COMM_WORLD.Get_size()
+		#global_rew_final = MPI.COMM_WORLD.allreduce(rew_final, op=MPI.SUM)/MPI.COMM_WORLD.Get_size()
 		self.actor_network.train()
 		return AttrDict(
-			succ=global_success_rate,
-			rew_mean=global_ret,
-			rew_final=global_rew_final
+			succ=success_rate,
+			rew_mean=ret,
+			rew_final=rew_final
 		)
