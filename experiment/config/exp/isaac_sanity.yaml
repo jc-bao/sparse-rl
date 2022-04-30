@@ -4,5 +4,8 @@ env_name: 'FrankaPNP-v0'
 wandb: true
 project: Sparse-rl 
 name: isaac_sanity
-num_workers: 1024
-n_batches: 640
+# num_workers: 1024
+num_workers: 64
+# n_batches: 640
+n_batches: 40
+render: false
