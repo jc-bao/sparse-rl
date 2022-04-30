@@ -49,11 +49,8 @@ class ddpg_agent:
 			self.critic_network = hydra.utils.instantiate(
 				args.critic, env_params)
 			# sync network
-			print('=============1')
 			sync_networks(self.actor_network)
 			sync_networks(self.critic_network)
-			print('=============2')
-			exit()
 			# build up the target network
 			self.actor_target_network = hydra.utils.instantiate(
 				args.actor, env_params)
@@ -99,7 +96,7 @@ class ddpg_agent:
 			data = np.load(args.init_trajs)
 			self.init_data = [data["grip"], data["obj"],
 												data["ag"], data["g"], data["action"]]
-		if ynPI.COMM_WORLD.Get_rank() == 0:
+		if MPI.COMM_WORLD.Get_rank() == 0:
 			if self.args.wandb:
 				self.model_dir = os.path.join(wandb.run.dir, "models")
 			else:
