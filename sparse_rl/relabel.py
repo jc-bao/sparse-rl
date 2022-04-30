@@ -90,7 +90,8 @@ class her_sampler:
         # to get the params to re-compute reward
         info = {'gripper_arr': transitions['gripper_next']}
         # transitions['r'] = np.expand_dims([self.reward_func(transitions['ag_next'][i], transitions['g'][i], None) for i in range(len(transitions['g']))], 1)
-        transitions['r'] = np.expand_dims(self.reward_func(transitions['ag_next'], transitions['g'], info), 1)
+        # transitions['r'] = np.expand_dims(self.reward_func(transitions['ag_next'], transitions['g'], info), 1)
+        transitions['r'] = -np.mean((np.linalg.norm(transitions['ag_next'] - transitions['g'], axis=-1) > 0.05),axis=-1) # TODO
         transitions = {k: transitions[k].reshape(batch_size, *transitions[k].shape[1:]) for k in transitions.keys()}
         
         return transitions

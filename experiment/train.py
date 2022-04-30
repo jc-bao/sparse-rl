@@ -1,3 +1,5 @@
+import isaacgym
+
 import os
 import pickle
 import hydra
@@ -14,7 +16,18 @@ def launch(cfg = None):
     import os, sys
     sys.path.append('/home/reed/rl/srl/envs')
     import franka_cube
-    exit()
+    env = gym.make('FrankaPNP-v0', num_envs=16, num_cameras=0, auto_reset=False)
+    p = env.env_params()
+    env_params = {
+        'gripper': p.shared_dim,
+        'goal': p.goal_dim,
+        'action': p.action_dim,
+        'action_max': 1.0,
+        'object': p.seperate_dim,
+        'n_objects': p.num_goals,
+        'max_timesteps': env.cfg.max_steps, 
+        'compute_reward': p.compute_reward
+    }
     # env_params = get_env_params(cfg.env_name, cfg.env_kwargs)
     # env = SubprocVecEnv([make_env for i in range(cfg.num_workers)])
 

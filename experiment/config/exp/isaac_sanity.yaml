@@ -1,0 +1,6 @@
+# @package _global_
+
+env_name: 'FrankaPNP-v0'
+wandb: true
+project: Sparse-rl 
+name: isaac_sanity

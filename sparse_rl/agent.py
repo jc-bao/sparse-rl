@@ -49,8 +49,8 @@ class ddpg_agent:
 			self.critic_network = hydra.utils.instantiate(
 				args.critic, env_params)
 			# sync network
-			sync_networks(self.actor_network)
-			sync_networks(self.critic_network)
+			# sync_networks(self.actor_network)
+			# sync_networks(self.critic_network)
 			# build up the target network
 			self.actor_target_network = hydra.utils.instantiate(
 				args.actor, env_params)
@@ -143,17 +143,18 @@ class ddpg_agent:
 					# reset the rollouts (time,env,data)
 					ep_grip, ep_obj, ep_ag, ep_g, ep_actions = [], [], [], [], []
 					# reset the environment
-					observation = self.env.reset(self.curri_params)
+					# observation = self.env.reset(self.curri_params)
+					observation = self.env.reset()
+					# for isaac
+					obs_dict = self.env.obs_parser(observation)
+					observation = {
+						'gripper_arr': obs_dict.shared.cpu().numpy(), 
+						'object_arr': obs_dict.seperate.unsqueeze(1).cpu().numpy(), # TODO change to view
+						'desired_goal_arr': obs_dict.g.unsqueeze(1).cpu().numpy(),
+						'achieved_goal_arr': obs_dict.ag.unsqueeze(1).cpu().numpy(),
+					}
 					# start to collect samples
 					for t in range(self.env_params['max_timesteps']):
-						# for isaac
-						obs_dict = self.env.obs_parser(observation)
-						observation = {
-							'gripper_arr': obs_dict.shared, 
-							'object_arr': obs_dict.seperate, 
-							'desired_goal_arr': obs_dict.g,
-							'achieved_goal_arr': obs_dict.ag,
-						}
 						grip, obj = observation['gripper_arr'], observation['object_arr']
 						g = observation['desired_goal_arr']
 						with torch.no_grad():
@@ -162,7 +163,7 @@ class ddpg_agent:
 							action = self._select_actions(
 								pi, noise_eps, random_eps)
 						# feed the actions into the environment
-						observation_new, _, _, info = self.env.step(action)
+						observation_new, _, _, info = self.env.step(torch.tensor(action).cuda())
 						# append rollouts
 						ep_grip.append(grip)
 						ep_obj.append(obj.copy())
@@ -171,10 +172,18 @@ class ddpg_agent:
 						ep_actions.append(action.copy())
 						# re-assign the observation
 						observation = observation_new
+						# for isaac
+						obs_dict = self.env.obs_parser(observation)
+						observation = {
+							'gripper_arr': obs_dict.shared.cpu().numpy(), 
+							'object_arr': obs_dict.seperate.unsqueeze(1).cpu().numpy(), # TODO change to view
+							'desired_goal_arr': obs_dict.g.unsqueeze(1).cpu().numpy(),
+							'achieved_goal_arr': obs_dict.ag.unsqueeze(1).cpu().numpy(),
+						}
 					ep_grip.append(observation['gripper_arr'].copy())
 					ep_obj.append(observation['object_arr'].copy())
 					ep_ag.append(observation['achieved_goal_arr'].copy())
-					dropout = np.array([d['dropout'] for d in info], dtype=bool)
+					dropout = self.env.info_parser(info).early_termin.cpu().numpy().astype(bool)
 					self.useless_steps += (sum(dropout) * self.env_params['max_timesteps'])
 					mb_grip.append(np.stack(ep_grip, 1)[~dropout])
 					mb_obj.append(np.stack(ep_obj, 1)[~dropout])
@@ -203,8 +212,8 @@ class ddpg_agent:
 						self.actor_target_network, self.actor_network)
 					self._soft_update_target_network(
 						self.critic_target_network, self.critic_network)
-					#if self.args.wandb and MPI.COMM_WORLD.Get_rank() == 0:
-					wandb.log(metrics, step=self.tot_samples)
+					if self.args.wandb:# and MPI.COMM_WORLD.Get_rank() == 0:
+						wandb.log(metrics, step=self.tot_samples)
 			# start to do the evaluation
 			eval_return = self._eval_agent(
 				render=(self.current_epoch % self.args.render_interval) == 0 and self.current_epoch > 0)
@@ -216,17 +225,17 @@ class ddpg_agent:
 					self.curri_params[k] += v['step']
 			print('Curri_params:', self.curri_params)
 			print(f'Epoch time: {time.time() - start}')
-			#if self.args.wandb and MPI.COMM_WORLD.Get_rank() == 0:
-			wandb.log({
-				**self.curri_params, 
-				'eval/success_rate': eval_return.succ,
-				'eval/rew_mean': eval_return.rew_mean,
-				'eval/rew_final': eval_return.rew_final,
-				'epoch': self.current_epoch,
-				'exploration/random_eps': random_eps,
-				'exploration/noise_eps': noise_eps,
-				'exploration/useless_rate': self.useless_steps/self.tot_samples
-			}, step=self.tot_samples)
+			if self.args.wandb: # and MPI.COMM_WORLD.Get_rank() == 0:
+				wandb.log({
+					**self.curri_params, 
+					'eval/success_rate': eval_return.succ,
+					'eval/rew_mean': eval_return.rew_mean,
+					'eval/rew_final': eval_return.rew_final,
+					'epoch': self.current_epoch,
+					'exploration/random_eps': random_eps,
+					'exploration/noise_eps': noise_eps,
+					'exploration/useless_rate': self.useless_steps/self.tot_samples
+				}, step=self.tot_samples)
 			self.current_epoch = epoch
 			#if MPI.COMM_WORLD.Get_rank() == 0:
 			save_data = [self.x_norm, self.actor_network, self.critic_network]
@@ -386,12 +395,12 @@ class ddpg_agent:
 		# start to update the network
 		self.actor_optim.zero_grad()
 		actor_loss.backward()
-		sync_grads(self.actor_network)
+		# sync_grads(self.actor_network)
 		self.actor_optim.step()
 		# update the critic_network
 		self.critic_optim.zero_grad()
 		critic_loss.backward()
-		sync_grads(self.critic_network)
+		# sync_grads(self.critic_network)
 		self.critic_optim.step()
 		metrics = {
 			'loss/actor': actor_loss.detach().cpu().item(),
@@ -410,10 +419,18 @@ class ddpg_agent:
 		self.actor_network.eval()
 		results, returns, final_rew = [], [], []
 		observation = self.env.reset()
+		# for isaac
+		obs_dict = self.env.obs_parser(observation)
+		observation = {
+			'gripper_arr': obs_dict.shared.cpu().numpy(), 
+			'object_arr': obs_dict.seperate.unsqueeze(1).cpu().numpy(), # TODO change to view
+			'desired_goal_arr': obs_dict.g.unsqueeze(1).cpu().numpy(),
+			'achieved_goal_arr': obs_dict.ag.unsqueeze(1).cpu().numpy(),
+		}
 		#if MPI.COMM_WORLD.Get_rank() == 0:
 		video = np.array([])
 		for _ in range(self.args.n_test_eps):
-			ret = np.zeros(self.args.num_workers)
+			ret = np.zeros(self.env.cfg.num_envs)
 			for t in range(self.env_params['max_timesteps']):
 				grip, obj = observation['gripper_arr'], observation['object_arr']
 				g = observation['desired_goal_arr']
@@ -421,9 +438,18 @@ class ddpg_agent:
 					input_tensors = self._preproc_inputs(grip, obj, g)
 					pi = self.actor_network(*input_tensors)
 					actions = pi.detach().cpu().numpy()
-				observation_new, rew, done, info = self.env.step(actions)
-				ret += rew
+				observation_new, rew, done, info = self.env.step(torch.tensor(actions).cuda())
+				rew = rew.cpu().numpy() # TODO 
+				ret += rew # TODO
 				observation = observation_new
+				# for isaac
+				obs_dict = self.env.obs_parser(observation)
+				observation = {
+					'gripper_arr': obs_dict.shared.cpu().numpy(), 
+					'object_arr': obs_dict.seperate.unsqueeze(1).cpu().numpy(), # TODO change to view, change to GPU
+					'desired_goal_arr': obs_dict.g.unsqueeze(1).cpu().numpy(),
+					'achieved_goal_arr': obs_dict.ag.unsqueeze(1).cpu().numpy(),
+				}
 				if render and len(results) <= 32 :# and MPI.COMM_WORLD.Get_rank() == 0:
 					frame = np.array(self.env.render(mode='rgb_array'))
 					frame = np.moveaxis(frame, -1, 1)
@@ -432,8 +458,10 @@ class ddpg_agent:
 						video = np.array([frame])
 					else:
 						video = np.concatenate((video, [frame]), axis=0)
+			info_dict = self.env.info_parser(info) # TODO
+			info = {'is_success': info_dict.success.cpu().numpy()}
 			for idx in range(self.args.num_workers):
-				results.append(info[idx]['is_success'])
+				results.append(info['is_success'][idx])
 				returns.append(ret[idx])
 				final_rew.append(rew[idx])
 		if render and self.args.wandb: # and MPI.COMM_WORLD.Get_rank() == 0:
