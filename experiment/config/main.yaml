@@ -16,7 +16,7 @@ n_cycles: 50
 n_batches: 10
 save_interval: 5
 seed: 0 
-num_workers: 16
+num_workers: 1
 replay_strategy: future
 clip_return: 50
 noise_eps: 0.2
