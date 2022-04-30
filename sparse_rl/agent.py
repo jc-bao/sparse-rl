@@ -439,7 +439,7 @@ class ddpg_agent:
 		rew_final=np.mean(final_rew)
 		global_success_rate = MPI.COMM_WORLD.allreduce(success_rate, op=MPI.SUM)/MPI.COMM_WORLD.Get_size()
 		global_ret = MPI.COMM_WORLD.allreduce(ret, op=MPI.SUM)/MPI.COMM_WORLD.Get_size()
-		global_rew_final = MPI.COMM_WORLD.allreduce(ret, op=MPI.SUM)/MPI.COMM_WORLD.Get_size()
+		global_rew_final = MPI.COMM_WORLD.allreduce(rew_final, op=MPI.SUM)/MPI.COMM_WORLD.Get_size()
 		self.actor_network.train()
 		return AttrDict(
 			succ=global_success_rate,
