@@ -11,12 +11,12 @@ from sparse_rl.utils import SubprocVecEnv, get_env_params
 @hydra.main(config_name='main', config_path='config')
 def launch(cfg = None):
     # 1. make env
-    env_params = get_env_params(cfg.env_name, cfg.env_kwargs)
-    def make_env():
-        from importlib.machinery import SourceFileLoader
-        modulevar = SourceFileLoader('FrankaCube', '/home/reed/rl/srl/envs/franka_cube.py').load_module()
-        return gym.make(cfg.env_name, **cfg.env_kwargs)
-    env = SubprocVecEnv([make_env for i in range(cfg.num_workers)])
+    import os, sys
+    sys.path.append('/home/reed/rl/srl/envs')
+    import franka_cube
+    exit()
+    # env_params = get_env_params(cfg.env_name, cfg.env_kwargs)
+    # env = SubprocVecEnv([make_env for i in range(cfg.num_workers)])
 
     # 2. start wandb
     ckpt_data = None
