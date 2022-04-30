@@ -16,7 +16,7 @@ def launch(cfg = None):
     import os, sys
     sys.path.append('/home/reed/rl/srl/envs')
     import franka_cube
-    env = gym.make('FrankaPNP-v0', num_envs=16, num_cameras=0, headless=True, max_vel=3, base_steps=50)
+    env = gym.make('FrankaPNP-v0', num_envs=cfg.num_workers, num_cameras=0, headless=True, max_vel=3, base_steps=50, auto_reset=False)
     p = env.env_params()
     env_params = {
         'gripper': p.shared_dim,
