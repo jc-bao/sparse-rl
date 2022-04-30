@@ -146,13 +146,13 @@ class ddpg_agent:
 					# observation = self.env.reset(self.curri_params)
 					observation = self.env.reset()
 					# for isaac
-					obs_dict = self.env.obs_parser(observation)
-					observation = {
-						'gripper_arr': obs_dict.shared.cpu().numpy(), 
-						'object_arr': obs_dict.seperate.unsqueeze(1).cpu().numpy(), # TODO change to view
-						'desired_goal_arr': obs_dict.g.unsqueeze(1).cpu().numpy(),
-						'achieved_goal_arr': obs_dict.ag.unsqueeze(1).cpu().numpy(),
-					}
+					# obs_dict = self.env.obs_parser(observation)
+					# observation = {
+					# 	'gripper_arr': obs_dict.shared.cpu().numpy(), 
+					# 	'object_arr': obs_dict.seperate.unsqueeze(1).cpu().numpy(), # TODO change to view
+					# 	'desired_goal_arr': obs_dict.g.unsqueeze(1).cpu().numpy(),
+					# 	'achieved_goal_arr': obs_dict.ag.unsqueeze(1).cpu().numpy(),
+					# }
 					# start to collect samples
 					for t in range(self.env_params['max_timesteps']):
 						grip, obj = observation['gripper_arr'], observation['object_arr']
@@ -173,17 +173,18 @@ class ddpg_agent:
 						# re-assign the observation
 						observation = observation_new
 						# for isaac
-						obs_dict = self.env.obs_parser(observation)
-						observation = {
-							'gripper_arr': obs_dict.shared.cpu().numpy(), 
-							'object_arr': obs_dict.seperate.unsqueeze(1).cpu().numpy(), # TODO change to view
-							'desired_goal_arr': obs_dict.g.unsqueeze(1).cpu().numpy(),
-							'achieved_goal_arr': obs_dict.ag.unsqueeze(1).cpu().numpy(),
-						}
+						# obs_dict = self.env.obs_parser(observation)
+						# observation = {
+						# 	'gripper_arr': obs_dict.shared.cpu().numpy(), 
+						# 	'object_arr': obs_dict.seperate.unsqueeze(1).cpu().numpy(), # TODO change to view
+						# 	'desired_goal_arr': obs_dict.g.unsqueeze(1).cpu().numpy(),
+						# 	'achieved_goal_arr': obs_dict.ag.unsqueeze(1).cpu().numpy(),
+						# }
 					ep_grip.append(observation['gripper_arr'].copy())
 					ep_obj.append(observation['object_arr'].copy())
 					ep_ag.append(observation['achieved_goal_arr'].copy())
-					dropout = self.env.info_parser(info).early_termin.cpu().numpy().astype(bool)
+					# dropout = self.env.info_parser(info).early_termin.cpu().numpy().astype(bool)
+					dropout = np.zeros((self.env.env.num_envs,), dtype=bool)
 					self.useless_steps += (sum(dropout) * self.env_params['max_timesteps'])
 					mb_grip.append(np.stack(ep_grip, 1)[~dropout])
 					mb_obj.append(np.stack(ep_obj, 1)[~dropout])
@@ -216,7 +217,7 @@ class ddpg_agent:
 						wandb.log(metrics, step=self.tot_samples)
 			# start to do the evaluation
 			eval_return = self._eval_agent(
-				render=(self.current_epoch % self.args.render_interval) == 0 and self.current_epoch > 0)
+				render=(self.current_epoch % self.args.render_interval) == 0 and self.current_epoch > 0 and self.args.render)
 			print('[{}] epoch is: {}, eval success rate is: {:.3f}'.format(
 				datetime.now(), self.current_epoch, eval_return.succ))
 			# start curriculum
@@ -420,17 +421,17 @@ class ddpg_agent:
 		results, returns, final_rew = [], [], []
 		observation = self.env.reset()
 		# for isaac
-		obs_dict = self.env.obs_parser(observation)
-		observation = {
-			'gripper_arr': obs_dict.shared.cpu().numpy(), 
-			'object_arr': obs_dict.seperate.unsqueeze(1).cpu().numpy(), # TODO change to view
-			'desired_goal_arr': obs_dict.g.unsqueeze(1).cpu().numpy(),
-			'achieved_goal_arr': obs_dict.ag.unsqueeze(1).cpu().numpy(),
-		}
+		# obs_dict = self.env.obs_parser(observation)
+		# observation = {
+		# 	'gripper_arr': obs_dict.shared.cpu().numpy(), 
+		# 	'object_arr': obs_dict.seperate.unsqueeze(1).cpu().numpy(), # TODO change to view
+		# 	'desired_goal_arr': obs_dict.g.unsqueeze(1).cpu().numpy(),
+		# 	'achieved_goal_arr': obs_dict.ag.unsqueeze(1).cpu().numpy(),
+		# }
 		#if MPI.COMM_WORLD.Get_rank() == 0:
 		video = np.array([])
 		for _ in range(self.args.n_test_eps):
-			ret = np.zeros(self.env.cfg.num_envs)
+			ret = np.zeros(self.env.env.num_envs)
 			for t in range(self.env_params['max_timesteps']):
 				grip, obj = observation['gripper_arr'], observation['object_arr']
 				g = observation['desired_goal_arr']
@@ -443,13 +444,13 @@ class ddpg_agent:
 				ret += rew # TODO
 				observation = observation_new
 				# for isaac
-				obs_dict = self.env.obs_parser(observation)
-				observation = {
-					'gripper_arr': obs_dict.shared.cpu().numpy(), 
-					'object_arr': obs_dict.seperate.unsqueeze(1).cpu().numpy(), # TODO change to view, change to GPU
-					'desired_goal_arr': obs_dict.g.unsqueeze(1).cpu().numpy(),
-					'achieved_goal_arr': obs_dict.ag.unsqueeze(1).cpu().numpy(),
-				}
+				# obs_dict = self.env.obs_parser(observation)
+				# observation = {
+				# 	'gripper_arr': obs_dict.shared.cpu().numpy(), 
+				# 	'object_arr': obs_dict.seperate.unsqueeze(1).cpu().numpy(), # TODO change to view, change to GPU
+				# 	'desired_goal_arr': obs_dict.g.unsqueeze(1).cpu().numpy(),
+				# 	'achieved_goal_arr': obs_dict.ag.unsqueeze(1).cpu().numpy(),
+				# }
 				if render and len(results) <= 32 :# and MPI.COMM_WORLD.Get_rank() == 0:
 					frame = np.array(self.env.render(mode='rgb_array'))
 					frame = np.moveaxis(frame, -1, 1)
@@ -458,10 +459,11 @@ class ddpg_agent:
 						video = np.array([frame])
 					else:
 						video = np.concatenate((video, [frame]), axis=0)
-			info_dict = self.env.info_parser(info) # TODO
-			info = {'is_success': info_dict.success.cpu().numpy()}
+			# info_dict = self.env.info_parser(info) # TODO
+			# info = {'is_success': info_dict.success.cpu().numpy()}
 			for idx in range(self.args.num_workers):
-				results.append(info['is_success'][idx])
+				# results.append(info['is_success'][idx])
+				results.append(float(rew[idx]>-0.05))
 				returns.append(ret[idx])
 				final_rew.append(rew[idx])
 		if render and self.args.wandb: # and MPI.COMM_WORLD.Get_rank() == 0:

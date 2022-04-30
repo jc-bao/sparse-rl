@@ -1,5 +1,6 @@
 import isaacgym
 
+import torch
 import os
 import pickle
 import hydra
@@ -14,20 +15,52 @@ from sparse_rl.utils import SubprocVecEnv, get_env_params
 def launch(cfg = None):
     # 1. make env
     import os, sys
-    sys.path.append('/home/reed/rl/srl/envs')
-    import franka_cube
-    env = gym.make('FrankaPNP-v0', num_envs=cfg.num_workers, num_cameras=0, headless=True, max_vel=3, base_steps=50, auto_reset=False)
-    p = env.env_params()
+    # sys.path.append('/home/reed/rl/srl/envs')
+    # import franka_cube
+    # env = gym.make('FrankaPNP-v0', num_envs=cfg.num_workers, num_cameras=0, headless=True, max_vel=3, base_steps=50, auto_reset=False)
+    # p = env.env_params()
+    # env_params = {
+    #     'gripper': p.shared_dim,
+    #     'goal': p.goal_dim,
+    #     'action': p.action_dim,
+    #     'action_max': 1.0,
+    #     'object': p.seperate_dim,
+    #     'n_objects': p.num_goals,
+    #     'max_timesteps': env.cfg.max_steps, 
+    #     'compute_reward': p.compute_reward
+    # }
+    sys.path.append("/home/reed/rl/panda-isaac")
+    from panda_isaac.panda_push import PandaPushEnv
+    from panda_isaac.base_config import BaseConfig
+    class PushConfig(BaseConfig):
+        class env(BaseConfig.env):
+            seed = 42
+            # num_envs = 1024
+            num_envs = cfg.num_workers 
+            # num_observations = 3 * 224 * 224 + 12
+            num_observations = (3 + 15) * 2
+            num_actions = 4
+            max_episode_length = 100
+        class obs(BaseConfig.obs):
+            type = "state"
+            state_history_length = 2
+        class control(BaseConfig.control):
+            decimal = 6
+            controller = "ik"
+        class reward(BaseConfig.reward):
+            type = "sparse"
+    env = IsaacWrapper(PandaPushEnv(PushConfig, headless=True))
     env_params = {
-        'gripper': p.shared_dim,
-        'goal': p.goal_dim,
-        'action': p.action_dim,
+        'gripper': 12,
+        'goal': 3,
+        'action': 4,
         'action_max': 1.0,
-        'object': p.seperate_dim,
-        'n_objects': p.num_goals,
-        'max_timesteps': env.cfg.max_steps, 
-        'compute_reward': p.compute_reward
+        'object': 3,
+        'n_objects': 1,
+        'max_timesteps': 50, 
+        'compute_reward': None
     }
+
     # env_params = get_env_params(cfg.env_name, cfg.env_kwargs)
     # env = SubprocVecEnv([make_env for i in range(cfg.num_workers)])
 
@@ -62,6 +95,28 @@ def launch(cfg = None):
     # 3. run
     ddpg_trainer = ddpg_agent(cfg, env, env_params, ckpt_data=ckpt_data)
     ddpg_trainer.learn()
+
+class IsaacWrapper:
+    def __init__(self, env):
+        self.env = env
+
+    def step(self, action):
+        action = torch.tensor(action, device='cuda:0')
+        obs_old, reward, done, info = self.env.step(action)
+        obs = {
+            'gripper_arr': obs_old[:,21:33].cpu().numpy(), 
+            'object_arr': obs_old[:,18:21].unsqueeze(1).cpu().numpy(),
+            'desired_goal_arr': obs_old[:,33:36].unsqueeze(1).cpu().numpy(),
+            'achieved_goal_arr': obs_old[:,18:21].unsqueeze(1).cpu().numpy(),
+        }
+        return obs, reward-1, done, info
+
+    def reset(self):
+        self.env.reset_idx(torch.arange(self.env.num_envs,device='cuda:0'))
+        return self.step(torch.zeros(self.env.num_envs, 4))[0]
+
+    def render(self):
+        pass
 
 if __name__ == '__main__':
     launch()
