@@ -5,6 +5,7 @@ n_cycles: 1
 n_batches: 1
 n_test_eps: 1
 num_workers: 1
+batch_size: 4
 wandb: false
 env_name: 'FrankaPNP-v0'
 render: false

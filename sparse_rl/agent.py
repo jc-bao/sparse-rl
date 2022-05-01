@@ -184,7 +184,6 @@ class ddpg_agent:
 					ep_obj.append(observation['object_arr'].copy())
 					ep_ag.append(observation['achieved_goal_arr'].copy())
 					dropout = self.env.env.info_parser(info).early_termin.cpu().numpy().astype(bool)
-					print(dropout[0])
 					self.useless_steps += (sum(dropout) * self.env_params['max_timesteps'])
 					mb_grip.append(np.stack(ep_grip, 1)[~dropout])
 					mb_obj.append(np.stack(ep_obj, 1)[~dropout])

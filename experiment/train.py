@@ -17,7 +17,7 @@ def launch(cfg = None):
 	import os, sys
 	sys.path.append('/home/reed/rl/srl/envs')
 	import franka_cube
-	env = IsaacWrapper(gym.make('FrankaPNP-v0', num_envs=cfg.num_workers, num_cameras=0, headless=False, auto_reset=False, base_steps=51))
+	env = IsaacWrapper(gym.make('FrankaPNP-v0', num_envs=cfg.num_workers, num_cameras=0, headless=True, auto_reset=False, base_steps=51))
 	p = env.env_params
 	env_params = {
 		'gripper': p.shared_dim,
