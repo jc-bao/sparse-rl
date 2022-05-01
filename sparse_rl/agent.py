@@ -184,7 +184,7 @@ class ddpg_agent:
 					ep_obj.append(observation['object_arr'].copy())
 					ep_ag.append(observation['achieved_goal_arr'].copy())
 					# dropout = self.env.info_parser(info).early_termin.cpu().numpy().astype(bool)
-					dropout = np.zeros((self.env.env.num_envs,), dtype=bool)
+					dropout = np.zeros((self.env.num_envs,), dtype=bool)
 					self.useless_steps += (sum(dropout) * self.env_params['max_timesteps'])
 					mb_grip.append(np.stack(ep_grip, 1)[~dropout])
 					mb_obj.append(np.stack(ep_obj, 1)[~dropout])
@@ -431,7 +431,7 @@ class ddpg_agent:
 		#if MPI.COMM_WORLD.Get_rank() == 0:
 		video = np.array([])
 		for _ in range(self.args.n_test_eps):
-			ret = np.zeros(self.env.env.num_envs)
+			ret = np.zeros(self.env.num_envs)
 			for t in range(self.env_params['max_timesteps']):
 				grip, obj = observation['gripper_arr'], observation['object_arr']
 				g = observation['desired_goal_arr']
